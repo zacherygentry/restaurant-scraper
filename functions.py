@@ -1,19 +1,29 @@
 from lxml import html
 import requests
-import grequests
-from io import BytesIO
+from requests_threads import AsyncSession
 import random
 from os import system, name
+import math
+
+session = AsyncSession(100)
 
 def getRestaurantsAtURL(URL):
-    constantURL = URL
     restaurants = list()
+    page = requests.get(URL)
+
     pageNum = 1
+    URLs = []
+    numOfPages = getNumberOfPages(page)
+    while(pageNum < numOfPages):
+        URLs.append(URL + '&page=' + str(pageNum))
+        pageNum += 1
+    
+    session = AsyncSession(n=numOfPages)
+    session.run(fetchPages(URLs))
+
     while(1):
         try:
-            tempURL = constantURL + '&page=' + str(pageNum)
-            page = requests.get(tempURL)
-            pageNum += 1
+            print('hello')
         except:
             print('exception')
             break
@@ -44,11 +54,16 @@ def getRestaurantsAtURL(URL):
             restaurants.append(restaurant)
     return restaurants
 
-def getNumberOfPages(URL):
-    page = requests.get(URL)
+async def fetchPages(URLs):
+    rs = []
+    for URL in URLs:
+        rs.append(await session.get(URL))
+    print(rs)
+
+def getNumberOfPages(page):
     tree = html.fromstring(page.content)
-    numOfResults = int(tree.xpath('//div[@class="pagination"]//p/text()'))
-    return numOfResults
+    numOfResults = tree.xpath('//div[@class="pagination"]//p/text()')
+    return math.ceil(int(numOfResults[0]) / 30)
 
 def getRestaurantsAtCity(city):
     city = city.replace(' ', '')
